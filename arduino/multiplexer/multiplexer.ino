@@ -28,11 +28,18 @@ void loop(){
   //Loop through and read all 16 values
   //Reports back "Value at channel 6 is: 346"
   for(int i = 0; i < 16; i ++){
-    Serial.print("Value at channel ");
-    Serial.print(i);
-    Serial.print(" is : ");
-    Serial.println(readMux(i));
-    delay(1000);
+    for(int j = i+1; j < 16; j ++){
+      
+      Serial.print("Electrode pair: ");
+      Serial.print(i);
+      Serial.print("-");
+      Serial.print(j);
+      Serial.print('\n');
+
+//      Serial.println(readMux(i));
+      delay(5);   // Want this whole thing to go as fast as possible
+      // Need nested loop to transition between pairs (1-2,1-3,1-4...15-12,15-13,15-14)
+    }
   }
 
 }
