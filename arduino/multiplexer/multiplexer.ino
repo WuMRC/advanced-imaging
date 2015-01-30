@@ -1,23 +1,39 @@
 //Mux control pins
-int s0 = 11;
-int s1 = 10;
-int s2 = 9;
-int s3 = 8;
+int as0 = 11;
+int as1 = 10;
+int as2 = 9;
+int as3 = 8;
+
+int bs0 = 7;
+int bs1 = 6;
+int bs2 = 5;
+int bs3 = 4;
 
 //Mux in "SIG" pin
-int SIG_pin = 0;
+int SIG_pinA = 0;
+int SIG_pinB = 1;
 
 
 void setup(){
-  pinMode(s0, OUTPUT); 
-  pinMode(s1, OUTPUT); 
-  pinMode(s2, OUTPUT); 
-  pinMode(s3, OUTPUT); 
+  pinMode(as0, OUTPUT); 
+  pinMode(as1, OUTPUT); 
+  pinMode(as2, OUTPUT); 
+  pinMode(as3, OUTPUT); 
+  
+  pinMode(bs0, OUTPUT); 
+  pinMode(bs1, OUTPUT); 
+  pinMode(bs2, OUTPUT); 
+  pinMode(bs3, OUTPUT); 
 
-  digitalWrite(s0, LOW);
-  digitalWrite(s1, LOW);
-  digitalWrite(s2, LOW);
-  digitalWrite(s3, LOW);
+  digitalWrite(as0, LOW);
+  digitalWrite(as1, LOW);
+  digitalWrite(as2, LOW);
+  digitalWrite(as3, LOW);
+  
+  digitalWrite(bs0, LOW);
+  digitalWrite(bs1, LOW);
+  digitalWrite(bs2, LOW);
+  digitalWrite(bs3, LOW);
 
   Serial.begin(9600);
 }
@@ -36,7 +52,10 @@ void loop(){
       Serial.print(j);
       Serial.print('\n');
 
-//      Serial.println(readMux(i));
+      Serial.println(readMuxA(i));
+      Serial.println(readMuxB(j));
+
+      
       delay(5);   // Want this whole thing to go as fast as possible
       // Need nested loop to transition between pairs (1-2,1-3,1-4...15-12,15-13,15-14)
     }
@@ -45,8 +64,8 @@ void loop(){
 }
 
 
-int readMux(int channel){
-  int controlPin[] = {s0, s1, s2, s3};
+int readMuxA(int channel){
+  int controlPin[] = {as0, as1, as2, as3};
 
   int muxChannel[16][4]={
     {0,0,0,0}, //channel 0
@@ -73,7 +92,41 @@ int readMux(int channel){
   }
 
   //read the value at the SIG pin
-  int val = analogRead(SIG_pin);
+  int val = analogRead(SIG_pinA);
+
+  //return the value
+  return val;
+}
+
+int readMuxB(int channel){
+  int controlPin[] = {bs0, bs1, bs2, bs3};
+
+  int muxChannel[16][4]={
+    {0,0,0,0}, //channel 0
+    {1,0,0,0}, //channel 1
+    {0,1,0,0}, //channel 2
+    {1,1,0,0}, //channel 3
+    {0,0,1,0}, //channel 4
+    {1,0,1,0}, //channel 5
+    {0,1,1,0}, //channel 6
+    {1,1,1,0}, //channel 7
+    {0,0,0,1}, //channel 8
+    {1,0,0,1}, //channel 9
+    {0,1,0,1}, //channel 10
+    {1,1,0,1}, //channel 11
+    {0,0,1,1}, //channel 12
+    {1,0,1,1}, //channel 13
+    {0,1,1,1}, //channel 14
+    {1,1,1,1}  //channel 15
+  };
+
+  //loop through the 4 sig
+  for(int j = 0; j < 4; j ++){
+    digitalWrite(controlPin[j], muxChannel[channel][j]);
+  }
+
+  //read the value at the SIG pin
+  int val = analogRead(SIG_pinB);
 
   //return the value
   return val;
