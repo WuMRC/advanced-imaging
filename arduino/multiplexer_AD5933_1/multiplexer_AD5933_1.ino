@@ -204,7 +204,7 @@ void loop()
   setMUX(lt1);
   delay(100);
   AD5933.setCtrMode(REPEAT_FREQ);
-  delay(100);
+  //delay(100);
   #endif
   //End [B.1]
    
