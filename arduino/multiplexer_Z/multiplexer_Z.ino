@@ -288,9 +288,9 @@ void loop(){
   if (SAMPLE_RATE_FLAG) { // this flag is toggled from the timer's interrupt context. It controls the sample rate.
   
 
-for(int i = 0; i < 16; i ++){
+for(int i = 0; i < 4; i ++){
     
-    for(int j = i+1; j < 16; j ++){
+    for(int j = i+1; j < 4; j ++){
       if( i != j )
       {
         readMux(i,j);
