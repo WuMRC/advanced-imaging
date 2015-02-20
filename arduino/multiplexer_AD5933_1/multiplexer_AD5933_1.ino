@@ -137,7 +137,7 @@ void setup()
   
   AD5933.setIncrementinHex(1);
   AD5933.setNumofIncrement(2);
-  AD5933.setVolPGA(0,1);
+  AD5933.setVolPGA(0,1); // 0 - 2Vpp, 1 - 0.2Vpp
   
   double temp = AD5933.getTemperature();
   #if VERBOSE

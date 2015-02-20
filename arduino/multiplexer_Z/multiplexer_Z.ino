@@ -9,9 +9,10 @@
 // ================================================================
 
 #define TWI_FREQ 400000L      // Set TWI/I2C Frequency to 400MHz.
-#define cycles_base 15        // Cycles to ignore before a measurement is taken. Max is 511.
-#define cycles_multiplier 1   // Multiple for cycles_base. Can be 1, 2, or 4.
-#define cal_resistance 461    // Calibration resistance for the gain factor. 
+#define cycles_base 511        // Cycles to ignore before a measurement is taken. Max is 511.
+#define cycles_multiplier 4   // Multiple for cycles_base. Can be 1, 2, or 4.
+//#define cal_resistance 1841    // Calibration resistance for the gain factor. 
+#define cal_resistance 469    // Calibration resistance for the gain factor. 
 #define cal_samples 10        // Number of measurements to take of the calibration resistance.
 #define B 98                  // Begin
 #define S 115                 // Stop
@@ -307,9 +308,9 @@ void loop(){
         
           //Serial.print(startFreqHz + (stepSizeHz * currentStep));
           //Serial.print("\t");
-          //Serial.print(Z_Value, 4);
-          //Serial.print("\t"); 
-          //Serial.print(phaseAngle, 4);
+          Serial.print(Z_Value, 4);
+          Serial.print("\t"); 
+          Serial.print(phaseAngle, 4);
           Serial.println();
 
         }
@@ -335,12 +336,12 @@ void loop(){
         
         readMux(i,j);
         // Need at least 10 ms to take impedance readings
-        
+        delay(100);
         //Serial.print(startFreqHz + (stepSizeHz * currentStep));
         //Serial.print("\t");
-        //Serial.print(Z_Value, 4);
-        //Serial.print("\t"); 
-        //Serial.print(phaseAngle, 4);
+        Serial.print(Z_Value, 4);
+        Serial.print("\t"); 
+        Serial.print(phaseAngle, 4);
         Serial.println();
 
       }
