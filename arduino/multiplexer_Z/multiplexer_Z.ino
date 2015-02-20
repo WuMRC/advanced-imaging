@@ -9,9 +9,10 @@
 // ================================================================
 
 #define TWI_FREQ 400000L      // Set TWI/I2C Frequency to 400MHz.
-#define cycles_base 15        // Cycles to ignore before a measurement is taken. Max is 511.
-#define cycles_multiplier 1   // Multiple for cycles_base. Can be 1, 2, or 4.
-#define cal_resistance 461    // Calibration resistance for the gain factor. 
+#define cycles_base 511        // Cycles to ignore before a measurement is taken. Max is 511.
+#define cycles_multiplier 4   // Multiple for cycles_base. Can be 1, 2, or 4.
+//#define cal_resistance 1841    // Calibration resistance for the gain factor. 
+#define cal_resistance 469    // Calibration resistance for the gain factor. 
 #define cal_samples 10        // Number of measurements to take of the calibration resistance.
 #define B 98                  // Begin
 #define S 115                 // Stop
@@ -31,11 +32,10 @@
 // ================================================================
 // MUX Control pins
 // ================================================================
-int sa0 = 3; int sa1 = 4; int sa2 = 5; int sa3 = 6;        // MUX A
-int sb0 = 8; int sb1 = 9; int sb2 = 10; int sb3 = 11;      // MUX B
-int enablea = 2; int enableb = 7;
+int MUX_A_S0 = 3; int MUX_A_S1 = 4; int MUX_A_S2 = 5; int MUX_A_S3 = 6;        // MUX A
+int MUX_B_S0 = 8; int MUX_B_S1 = 9; int MUX_B_S2 = 10; int MUX_B_S3 = 11;      // MUX B
+int MUX_A_EN = 2; int MUX_B_EN = 7;
 
-int SIG_pin = 0;        // MUX signal pin
 
 // ================================================================
 // Dynamic variables
@@ -82,13 +82,13 @@ void setup(){
   // ================================================================
   // For MUX
   // ================================================================
-  pinMode(sa0, OUTPUT); pinMode(sa1, OUTPUT); pinMode(sa2, OUTPUT); pinMode(sa3, OUTPUT); 
-  pinMode(sb0, OUTPUT); pinMode(sb1, OUTPUT); pinMode(sb2, OUTPUT); pinMode(sb3, OUTPUT); 
-  pinMode(enablea, OUTPUT); pinMode(enableb, OUTPUT);
+  pinMode(MUX_A_S0, OUTPUT); pinMode(MUX_A_S1, OUTPUT); pinMode(MUX_A_S2, OUTPUT); pinMode(MUX_A_S3, OUTPUT); 
+  pinMode(MUX_B_S0, OUTPUT); pinMode(MUX_B_S1, OUTPUT); pinMode(MUX_B_S2, OUTPUT); pinMode(MUX_B_S3, OUTPUT); 
+  pinMode(MUX_A_EN, OUTPUT); pinMode(MUX_B_EN, OUTPUT);
 
-  digitalWrite(sa0, LOW); digitalWrite(sa1, LOW); digitalWrite(sa2, LOW); digitalWrite(sa3, LOW);
-  digitalWrite(sb0, LOW); digitalWrite(sb1, LOW); digitalWrite(sb2, LOW); digitalWrite(sb3, LOW);
-  digitalWrite(enablea,HIGH); digitalWrite(enableb,HIGH);
+  digitalWrite(MUX_A_S0, LOW); digitalWrite(MUX_A_S1, LOW); digitalWrite(MUX_A_S2, LOW); digitalWrite(MUX_A_S3, LOW);
+  digitalWrite(MUX_B_S0, LOW); digitalWrite(MUX_B_S1, LOW); digitalWrite(MUX_B_S2, LOW); digitalWrite(MUX_B_S3, LOW);
+  digitalWrite(MUX_A_EN,HIGH); digitalWrite(MUX_B_EN,HIGH);
 
 // ================================================================
   // For AD5933
@@ -288,6 +288,7 @@ void loop(){
   if (SAMPLE_RATE_FLAG) { // this flag is toggled from the timer's interrupt context. It controls the sample rate.
   
 
+<<<<<<< HEAD
 for(int i = 0; i < 4; i ++){
     
     for(int j = i+1; j < 4; j ++){
@@ -319,95 +320,74 @@ for(int i = 0; i < 4; i ++){
         AD5933.setCtrMode(INIT_START_FREQ, ctrReg);
         AD5933.setCtrMode(START_FREQ_SWEEP, ctrReg);
       }
+=======
+    for(int i = 0; i < 16; i ++){
+    
+      for(int j = i+1; j < 16; j ++){
+        if( i != j )
+        {
+          Serial.print(millis());
+          Serial.print("\t");
+          Serial.print("Pair ");
+          Serial.print(i);
+          Serial.print("-");
+          Serial.print(j);
+          Serial.print('\t');
+>>>>>>> MUX_Z-2
 
-      AD5933.getComplex(GF_Array[currentStep], PS_Array[currentStep], Z_Value, phaseAngle);
+//        Serial.println(readMux(i,j));
+        
+          readMux(i,j);
+          // Need at least 10 ms to take impedance readings
+        
+          //Serial.print(startFreqHz + (stepSizeHz * currentStep));
+          //Serial.print("\t");
+          Serial.print(Z_Value, 4);
+          Serial.print("\t"); 
+          Serial.print(phaseAngle, 4);
+          Serial.println();
 
-      if(currentStep == numOfIncrements) {
-        currentStep = 0;
-        AD5933.setCtrMode(POWER_DOWN, ctrReg);
-      }
-      else {
-        AD5933.setCtrMode(INCR_FREQ, ctrReg);
-        currentStep++;
-      }
-    }
-
-
-
-    Serial.print(millis());
-    Serial.print("\t");
-    Serial.print(startFreqHz + (stepSizeHz * currentStep));
-    Serial.print("\t");
-    Serial.print(Z_Value, 4);
-    Serial.print("\t"); 
-    Serial.print(phaseAngle, 4);
-    Serial.println();
+        }
+      // Need nested loop to transition between pairs (1-2,1-3,1-4...15-12,15-13,15-14)
 
 
-
-    SAMPLE_RATE_FLAG = false; // Switch this flag back to false till timer interrupt switches it back on.
+      SAMPLE_RATE_FLAG = false; // Switch this flag back to false till timer interrupt switches it back on.
       
     }
     for(int j = 0; j < i; j ++){
       if( i != j )
       {
       
-        
-        Serial.print("Electrode pair: ");
+        Serial.print(millis());
+        Serial.print("\t");
+        Serial.print("Pair ");
         Serial.print(i);
         Serial.print("-");
         Serial.print(j);
-        Serial.print('\n');
+        Serial.print('\t');
 
 //        Serial.println(readMux(i,j));
         
         readMux(i,j);
         // Need at least 10 ms to take impedance readings
+        delay(100);
+        //Serial.print(startFreqHz + (stepSizeHz * currentStep));
+        //Serial.print("\t");
+        Serial.print(Z_Value, 4);
+        Serial.print("\t"); 
+        Serial.print(phaseAngle, 4);
+        Serial.println();
+
       }
       // Need nested loop to transition between pairs (1-2,1-3,1-4...15-12,15-13,15-14)
  
   
     
     
-    AD5933.tempUpdate();
-
-    if(!FREQ_SWEEP_FLAG) { // Repeat frequency, don't sweep.
-      AD5933.setCtrMode(REPEAT_FREQ);
-      AD5933.getComplex(gain_factor, systemPhaseShift, Z_Value, phaseAngle);
-    }
-
-    else { // Perform frequency sweep.
-
-      // Byte of ctrReg alredy gotten from changing mode to enable freq sweep.
-      if(currentStep == 0) {
-        AD5933.setCtrMode(STAND_BY, ctrReg);
-        AD5933.setCtrMode(INIT_START_FREQ, ctrReg);
-        AD5933.setCtrMode(START_FREQ_SWEEP, ctrReg);
-      }
-
-      AD5933.getComplex(GF_Array[currentStep], PS_Array[currentStep], Z_Value, phaseAngle);
-
-      if(currentStep == numOfIncrements) {
-        currentStep = 0;
-        AD5933.setCtrMode(POWER_DOWN, ctrReg);
-      }
-      else {
-        AD5933.setCtrMode(INCR_FREQ, ctrReg);
-        currentStep++;
-      }
-    }
 
 
 
-    Serial.print(millis());
-    Serial.print("\t");
-    Serial.print(startFreqHz + (stepSizeHz * currentStep));
-    Serial.print("\t");
-    Serial.print(Z_Value, 4);
-    Serial.print("\t"); 
-    Serial.print(phaseAngle, 4);
-    Serial.println();
-
+    
 
 
     SAMPLE_RATE_FLAG = false; // Switch this flag back to false till timer interrupt switches it back on. 
@@ -430,8 +410,8 @@ for(int i = 0; i < 4; i ++){
 
 
 int readMux(int channela, int channelb){
-  int controlPina[] = {sa0, sa1, sa2, sa3};
-  int controlPinb[] = {sb0, sb1, sb2, sb3};
+  int controlPina[] = {MUX_A_S0, MUX_A_S1, MUX_A_S2, MUX_A_S3};
+  int controlPinb[] = {MUX_B_S0, MUX_B_S1, MUX_B_S2, MUX_B_S3};
 
 
   int muxChannel[16][4]={
@@ -453,8 +433,8 @@ int readMux(int channela, int channelb){
     {1,1,1,1}  //channel 15
   };
 
-  digitalWrite(enablea,HIGH);
-  digitalWrite(enableb,HIGH);
+  digitalWrite(MUX_A_EN,HIGH);
+  digitalWrite(MUX_B_EN,HIGH);
   
   //loop through the 4 sig
   for(int i = 0; i < 4; i ++){
@@ -462,13 +442,40 @@ int readMux(int channela, int channelb){
     digitalWrite(controlPinb[i], muxChannel[channelb][i]);
   }
 
-  digitalWrite(enablea,LOW);
-  digitalWrite(enableb,LOW);
+  digitalWrite(MUX_A_EN,LOW);
+  digitalWrite(MUX_B_EN,LOW);
   //read the value at the SIG pin
-  //int val = analogRead(SIG_pin);
+  
+  AD5933.tempUpdate();
 
-  //return the value
-  return 0;
+  if(!FREQ_SWEEP_FLAG) { // Repeat frequency, don't sweep.
+    AD5933.setCtrMode(REPEAT_FREQ);
+    AD5933.getComplex(gain_factor, systemPhaseShift, Z_Value, phaseAngle);
+  }
+  else { // Perform frequency sweep.
+
+    // Byte of ctrReg alredy gotten from changing mode to enable freq sweep.
+    if(currentStep == 0) {
+      AD5933.setCtrMode(STAND_BY, ctrReg);
+      AD5933.setCtrMode(INIT_START_FREQ, ctrReg);
+      AD5933.setCtrMode(START_FREQ_SWEEP, ctrReg);
+    }
+
+    AD5933.getComplex(GF_Array[currentStep], PS_Array[currentStep], Z_Value, phaseAngle);
+
+    if(currentStep == numOfIncrements) {
+      currentStep = 0;
+      AD5933.setCtrMode(POWER_DOWN, ctrReg);
+    }
+    else {
+      AD5933.setCtrMode(INCR_FREQ, ctrReg);
+      currentStep++;
+    }
+  }
+
+  
+  
+  return 0; // Do not return meaningful data.
 }
 
 
