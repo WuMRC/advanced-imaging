@@ -288,39 +288,6 @@ void loop(){
   if (SAMPLE_RATE_FLAG) { // this flag is toggled from the timer's interrupt context. It controls the sample rate.
   
 
-<<<<<<< HEAD
-for(int i = 0; i < 4; i ++){
-    
-    for(int j = i+1; j < 4; j ++){
-      if( i != j )
-      {
-        readMux(i,j);
-        Serial.print("Electrode pair: ");
-        Serial.print(i);
-        Serial.print("-");
-        Serial.print(j);
-        Serial.print('\n');
-        // Need at least 10 ms to take impedance readings
-      }
-      // Need nested loop to transition between pairs (1-2,1-3,1-4...15-12,15-13,15-14)
-      
-     
-     AD5933.tempUpdate();
-
-    if(!FREQ_SWEEP_FLAG) { // Repeat frequency, don't sweep.
-      AD5933.setCtrMode(REPEAT_FREQ);
-      AD5933.getComplex(gain_factor, systemPhaseShift, Z_Value, phaseAngle);
-    }
-
-    else { // Perform frequency sweep.
-
-      // Byte of ctrReg alredy gotten from changing mode to enable freq sweep.
-      if(currentStep == 0) {
-        AD5933.setCtrMode(STAND_BY, ctrReg);
-        AD5933.setCtrMode(INIT_START_FREQ, ctrReg);
-        AD5933.setCtrMode(START_FREQ_SWEEP, ctrReg);
-      }
-=======
     for(int i = 0; i < 16; i ++){
     
       for(int j = i+1; j < 16; j ++){
@@ -333,7 +300,6 @@ for(int i = 0; i < 4; i ++){
           Serial.print("-");
           Serial.print(j);
           Serial.print('\t');
->>>>>>> MUX_Z-2
 
 //        Serial.println(readMux(i,j));
         
