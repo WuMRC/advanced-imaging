@@ -15,6 +15,10 @@ Author: Il-Taek Kwon (Library, Program)
 
 #define VERBOSE 0 //Toggles verbose debugging output via the serial monitor.
                   //1 = On, 0 = Off.
+                  
+#define ENABLE_RECALIBRATION 1
+// Set whether to recalibrate or not
+// 1 = On, 0 = Off
 
 #define cycles_base 511      //First term to set a number of cycles to ignore
                              //to dissipate transients before a measurement is
@@ -54,10 +58,10 @@ const byte MUX_B_S0 = 28; const byte MUX_B_S1 = 29; const byte MUX_B_S2 = 30; co
 const byte MUX_A_EN = 22; const byte MUX_B_EN = 27;
 const byte MUX_CAL_EN = 2; const byte MUX_CAL_A0 = 3; const byte MUX_CAL_A1 = 4;
 
-//bool setMUX(int, int);
+bool setMUX(int, int);
 bool switchCalibrationMUX(byte);
 double gainFactor = 0, globalShift = 0;
-
+bool performCalibration();
 
 #include <Wire.h> //Library for I2C communications
 #include "AD5933.h" //Library for AD5933 functions (must be installed)
@@ -114,28 +118,8 @@ void setup() {
   Serial.println(" degree celcius.");
 #endif
   
-  //[A.3] Calculate the gain factor (needs cal resistance, # of measurements)
-  //Note: The gain factor finding function returns the INVERSE of the factor
-  //as defined on the datasheet!
   Serial.println("Calibration Start! - Switching MUX");
-  switchCalibrationMUX(1);
-  AD5933.getGainFactor(cal_resistance, cal_samples, gainFactor, globalShift, false);
-#if VERBOSE
-  if (gainFactor != -1)
-  {
-    Serial.print("Gain factor (");
-    Serial.print(cal_samples);
-    Serial.print(" samples) is: ");
-    Serial.println(gainFactor);
-    delay(100);
-  }
-  else
-  {
-    Serial.print("Error calculating gain factor!");
-    delay(1000);
-  } 
-#endif
-  //End [A.3]
+  performCalibration();
   
   Serial.println("Experiment Program");
   Serial.println();
@@ -143,7 +127,7 @@ void setup() {
   Serial.println("During the loop, following instructions are allowed. - N/A");
   
   Serial.println("Switching to measure. Measurement Starting!");
-  switchCalibrationMUX(4);
+
   
 }
 
@@ -204,12 +188,44 @@ void loop() {
         lt2 = 0;
     }
   }while(lt1 == lt2);
-  
-  
+ 
+#if ENABLE_RECALIBRATION  
+  if( lt1 == 1 && lt2 == 0)
+      performCalibration();
+#endif
+
 #if VERBOSE
   Serial.println("End Loop!");
 #endif
   
+}
+
+bool performCalibration()
+{
+  //[A.3] Calculate the gain factor (needs cal resistance, # of measurements)
+  //Note: The gain factor finding function returns the INVERSE of the factor
+  //as defined on the datasheet!
+  
+  switchCalibrationMUX(1);
+  AD5933.getGainFactor(cal_resistance, cal_samples, gainFactor, globalShift, false);
+#if VERBOSE
+  if (gainFactor != -1)
+  {
+    Serial.print("Gain factor (");
+    Serial.print(cal_samples);
+    Serial.print(" samples) is: ");
+    Serial.println(gainFactor);
+    delay(100);
+  }
+  else
+  {
+    Serial.print("Error calculating gain factor!");
+    delay(1000);
+  } 
+#endif
+  switchCalibrationMUX(4);
+  //End [A.3]
+   
 }
 
 // num2swt: 1 to 4
