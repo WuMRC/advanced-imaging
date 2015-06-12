@@ -6,7 +6,7 @@ It calibrates automatically without any hassle.
 Using Arduino MEGA / ADG809(Calibration MUX) / TI MUXes (Tomography, CD74HC4067) / AD5933
 
 Author: Il-Taek Kwon (Library, Program)
-(Adapted little portion of Daniel Johnson's code)
+(Adapted little portion of Daniel Johnson's code and comments)
 
 */
 
@@ -171,6 +171,14 @@ void loop() {
   //Serial.println(" Ohms.");
   Serial.print("\t");
   Serial.print(phaseVal);
+#if VERBOSE
+  Serial.print("\t");
+  int tReal, tImag;
+  AD5933.getComplexRawOnce(tReal, tImag);
+  Serial.print(tReal);
+  Serial.print("\t");
+  Serial.print(tImag);
+#endif
   Serial.println();
   
   //End [B.3]
@@ -215,6 +223,12 @@ bool performCalibration()
     Serial.print(cal_samples);
     Serial.print(" samples) is: ");
     Serial.println(gainFactor);
+    int tReal, tImag;
+    AD5933.getComplexRawOnce(tReal, tImag);
+    Serial.print("Real : ");
+    Serial.print(tReal);
+    Serial.print("\t Imag : ");
+    Serial.println(tImag);
     delay(100);
   }
   else
