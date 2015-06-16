@@ -127,12 +127,12 @@ void setup() {
   Serial.println("During the loop, following instructions are allowed. - N/A");
   
   Serial.println("Switching to measure. Measurement Starting!");
-
+  Serial.println("Trial 1 Starts");
   
 }
 
 void loop() {
-  static byte lt1=1, lt2 = 0;
+  static byte lt1=1, lt2 = 0, trialNum = 1;
   //--- B. Repeated single measurement ---
   //Gain factor calibration already sets the frequency, so just send 
   //repeat single magnitude capture command.
@@ -167,10 +167,10 @@ void loop() {
   //[B.2.3] Output the impedance value (serial, array, etc.) 
   
   Serial.print("\t");
-  Serial.print(Z_value);
+  Serial.print(Z_value,3);
   //Serial.println(" Ohms.");
   Serial.print("\t");
-  Serial.print(phaseVal);
+  Serial.print(phaseVal,5);
 #if VERBOSE
   Serial.print("\t");
   int tReal, tImag;
@@ -199,7 +199,13 @@ void loop() {
  
 #if ENABLE_RECALIBRATION  
   if( lt1 == 1 && lt2 == 0)
+  {
       performCalibration();
+      trialNum++;
+      Serial.print("Trial ");
+      Serial.print(trialNum);
+      Serial.println(" Starts");
+  }
 #endif
 
 #if VERBOSE
