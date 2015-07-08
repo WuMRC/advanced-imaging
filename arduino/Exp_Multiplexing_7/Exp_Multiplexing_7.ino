@@ -1,6 +1,7 @@
 /*
 Performs multiplexing to measure the impedance value between every nodes
 I also uses ADG809 to autowiring for calibration.
+It is designed for Pig Lab experiment with advanced calibration. (Not perfect)
 It calibrates automatically without any hassle.
 
 Using Arduino MEGA / ADG809(Calibration MUX) / TI MUXes (Tomography, CD74HC4067) / AD5933
@@ -32,14 +33,13 @@ Author: Il-Taek Kwon (Library, Program)
 
 #define start_frequency 50000 //Set the start frequency, the only one of
                               //interest here(50 kHz).
-
-double cal_resistance[3] = {218.7, 469.8, 806};  
-                            //Set a calibration resistance for the gain
-                            //factor. This will have to be measured before any
-                            //other measurements are performed.
-#define calResNum 1
+//Set a calibration resistance for the gain
+//factor. This will have to be measured before any
+//other measurements are performed.
+double cal_resistance[3] = {218.7, 469.8, 806};
+double refRValue[16] = {46.4, 98.1, 145.6, 218.4, 261.7, 325.1, 371, 460.1, 552.2, 664, 684, 794, 883, 1000,1559, 2176};
                            
-#define cal_samples 10 //Set a number of measurements to take of the calibration
+#define cal_samples 15 //Set a number of measurements to take of the calibration
                        //resistance. These are used to get an average gain
                        //factor.
 #define MAX_PAIR 15                       
@@ -63,6 +63,7 @@ const byte MUX_CAL_EN = 2; const byte MUX_CAL_A0 = 3; const byte MUX_CAL_A1 = 4;
 bool setMUX(int, int);
 bool switchCalibrationMUX(byte);
 double gainFactor = 0, globalShift = 0;
+double cIncr, cOffset;
 bool performCalibration();
 
 #include <Wire.h> //Library for I2C communications
@@ -110,8 +111,9 @@ void setup() {
   
   AD5933.setStepSizeInHex(1);
   AD5933.setNumofIncrement(2);
-  AD5933.setPGA(GAIN_1);
-  AD5933.setRange(RANGE_4);
+  AD5933.setPGA(GAIN_5);
+  AD5933.setRange(RANGE_2);
+  //AD5933.setStartFreq(start_frequency);
   
   double temp = AD5933.getTemperature();
 #if VERBOSE
@@ -129,12 +131,12 @@ void setup() {
   Serial.println("During the loop, following instructions are allowed. - N/A");
   
   Serial.println("Switching to measure. Measurement Starting!");
-  Serial.println("Trial 1 Starts");
+
   
 }
 
 void loop() {
-  static byte lt1=1, lt2 = 0, trialNum = 1;
+  static byte lt1=0, lt2 = 1;
   //--- B. Repeated single measurement ---
   //Gain factor calibration already sets the frequency, so just send 
   //repeat single magnitude capture command.
@@ -157,6 +159,7 @@ void loop() {
    
   double Z_value = -1, phaseVal = -10;  
   AD5933.getComplex(gainFactor, globalShift, Z_value, phaseVal); 
+  double Z_modified = Z_value * cIncr + cOffset - 168.51;
   
   Serial.print(millis());
   Serial.print("\t");
@@ -167,12 +170,14 @@ void loop() {
   Serial.print('\t');
   
   //[B.2.3] Output the impedance value (serial, array, etc.) 
-  
-  Serial.print("\t");
-  Serial.print(Z_value,3);
+
+  Serial.print(Z_value);
   //Serial.println(" Ohms.");
   Serial.print("\t");
-  Serial.print(phaseVal,5);
+  Serial.print(phaseVal);
+  Serial.print("\t");
+  Serial.print(Z_modified);
+  
 #if VERBOSE
   Serial.print("\t");
   int tReal, tImag;
@@ -189,25 +194,19 @@ void loop() {
   
   do{
     
-    lt1++;
-    if(lt1 > MAX_PAIR)
+    lt2++;
+    if(lt2 > MAX_PAIR)
     {
-      lt1=0;
-      lt2++;
-      if(lt2 > MAX_PAIR)
-        lt2 = 0;
+      lt2=0;
+      lt1++;
+      if(lt1 > MAX_PAIR)
+        lt1 = 0;
     }
   }while(lt1 == lt2);
  
 #if ENABLE_RECALIBRATION  
-  if( lt1 == 1 && lt2 == 0)
-  {
+  if( lt1 == 0 && lt2 == 1)
       performCalibration();
-      trialNum++;
-      Serial.print("Trial ");
-      Serial.print(trialNum);
-      Serial.println(" Starts");
-  }
 #endif
 
 #if VERBOSE
@@ -222,8 +221,8 @@ bool performCalibration()
   //Note: The gain factor finding function returns the INVERSE of the factor
   //as defined on the datasheet!
   
-  switchCalibrationMUX(calResNum);
-  AD5933.getGainFactor(cal_resistance[calResNum], cal_samples, gainFactor, globalShift, false);
+  switchCalibrationMUX(2);
+  AD5933.getGainFactor(cal_resistance[1], cal_samples, gainFactor, globalShift, false);
 #if VERBOSE
   if (gainFactor != -1)
   {
@@ -245,6 +244,77 @@ bool performCalibration()
     delay(1000);
   } 
 #endif
+  
+  switchCalibrationMUX(1);
+  double tSum = 0, tZval = 0;
+  for(byte t1=0;t1<cal_samples;t1++)
+  {
+    AD5933.tempUpdate();
+    AD5933.setCtrMode(REPEAT_FREQ);
+    AD5933.getImpedance(gainFactor, tZval);
+#if VERBOSE
+    Serial.print("tZVal : ");
+    Serial.println(tZval);
+#endif
+    tSum += tZval;
+  }
+  double zMin = tSum / cal_samples;
+  cIncr = (double)(cal_resistance[1] - cal_resistance[0]) / ((double)cal_resistance[1] - zMin);
+  cOffset = cal_resistance[0] - (cIncr * zMin);
+#if VERBOSE
+  Serial.println("Advanced Calibration Completed.");
+  Serial.print("zMin : ");
+  Serial.println(zMin);
+  Serial.print("cIncr : ");
+  Serial.println(cIncr,4);
+  Serial.print("cOffset : ");
+  Serial.println(cOffset);
+  
+#endif  
+
+  switchCalibrationMUX(3);
+  //double tSum = 0, tZval = 0;
+  tSum = 0;
+  for(byte t1=0;t1<cal_samples;t1++)
+  {
+    AD5933.tempUpdate();
+    AD5933.setCtrMode(REPEAT_FREQ);
+    AD5933.getImpedance(gainFactor, tZval);
+#if VERBOSE
+    Serial.print("tZVal : ");
+    Serial.println(tZval);
+#endif
+    tSum += tZval;
+  }
+  double zMax = tSum / cal_samples;
+  cIncr = (double)(cal_resistance[2] - cal_resistance[0]) / (zMax - zMin);
+  cOffset = cal_resistance[1] - (cIncr * cal_resistance[1]);
+#if VERBOSE
+  Serial.println("Advanced Calibration Completed.");
+  Serial.print("zMax : ");
+  Serial.println(zMax);
+  Serial.print("cIncr : ");
+  Serial.println(cIncr,4);
+  Serial.print("cOffset : ");
+  Serial.println(cOffset);
+
+  switchCalibrationMUX(2);
+  tSum=0;
+  for(byte t1=0;t1<cal_samples;t1++)
+  {
+    AD5933.tempUpdate();
+    AD5933.setCtrMode(REPEAT_FREQ);
+    AD5933.getImpedance(gainFactor, tZval);
+    Serial.print("tZVal : ");
+    Serial.println(tZval);
+    tSum += tZval;
+  }
+  Serial.print("Remeasured Calibration: ");
+  Serial.println(tSum / cal_samples);
+  
+#endif    
+
+  
   switchCalibrationMUX(4);
   //End [A.3]
    
