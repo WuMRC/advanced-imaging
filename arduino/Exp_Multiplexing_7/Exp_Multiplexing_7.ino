@@ -33,38 +33,49 @@ Author: Il-Taek Kwon (Library, Program)
 
 #define start_frequency 50000 //Set the start frequency, the only one of
                               //interest here(50 kHz).
+
 //Set a calibration resistance for the gain
 //factor. This will have to be measured before any
 //other measurements are performed.
 double cal_resistance[3] = {218.7, 469.8, 806};
+
+// Array for the reference resistance value to compare the measurement
 double refRValue[16] = {46.4, 98.1, 145.6, 218.4, 261.7, 325.1, 371, 460.1, 552.2, 664, 684, 794, 883, 1000,1559, 2176};
+
                            
 #define cal_samples 15 //Set a number of measurements to take of the calibration
                        //resistance. These are used to get an average gain
                        //factor.
-#define MAX_PAIR 15                       
-                       
+#define MAX_PAIR 15    // Specifying the number of maximum channel of MUX                                         
+
+/*
+ * Those six lines of preprocessing codes are for writing bit on the mircocessor register. 
+ * However, they are not used actually, so you can ignore. They could be deleted without affcting any functionality.
+ * Refer http://playground.arduino.cc/Main/AVR
+ */
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 #endif
 #ifndef sbi
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif                            
-//---
+
 
 // ================================================================
 // MUX Control pins
 // ================================================================
-const byte MUX_A_S0 = 23; const byte MUX_A_S1 = 24; const byte MUX_A_S2 = 25; const byte MUX_A_S3 = 26;        // MUX A
+const byte MUX_A_S0 = 23; const byte MUX_A_S1 = 24; const byte MUX_A_S2 = 25; const byte MUX_A_S3 = 26;      // MUX A
 const byte MUX_B_S0 = 28; const byte MUX_B_S1 = 29; const byte MUX_B_S2 = 30; const byte MUX_B_S3 = 31;      // MUX B
 const byte MUX_A_EN = 22; const byte MUX_B_EN = 27;
-const byte MUX_CAL_EN = 2; const byte MUX_CAL_A0 = 3; const byte MUX_CAL_A1 = 4;
+const byte MUX_CAL_EN = 2; const byte MUX_CAL_A0 = 3; const byte MUX_CAL_A1 = 4; // Pin for calibration MUX
 
+// Functions - Comments later
 bool setMUX(int, int);
 bool switchCalibrationMUX(byte);
-double gainFactor = 0, globalShift = 0;
-double cIncr, cOffset;
-bool performCalibration();
+bool performCalibration();  // Function for performing calibration
+
+double gainFactor = 0, globalShift = 0; // Variable of gain factor and global phase shift - see datasheet
+double cIncr, cOffset; // Constants for calibration on the chip
 
 #include <Wire.h> //Library for I2C communications
 #include "AD5933.h" //Library for AD5933 functions (must be installed)
@@ -136,7 +147,8 @@ void setup() {
 }
 
 void loop() {
-  static byte lt1=0, lt2 = 1;
+  static byte lt1=0, lt2 = 1; // Starting pair of MUX channels
+  
   //--- B. Repeated single measurement ---
   //Gain factor calibration already sets the frequency, so just send 
   //repeat single magnitude capture command.
@@ -150,7 +162,7 @@ void loop() {
   AD5933.tempUpdate();
 #endif
   
-  //[B.1] Issue a "repeat frequency" command.
+  //[B.1] Issue a "repeat frequency" command. & setting MUX channel to conduct
   setMUX(lt1,lt2);
   delay(50);
   AD5933.setCtrMode(REPEAT_FREQ);
@@ -159,8 +171,8 @@ void loop() {
    
   double Z_value = -1, phaseVal = -10;  
   AD5933.getComplex(gainFactor, globalShift, Z_value, phaseVal); 
-  double Z_modified = Z_value * cIncr + cOffset - 168.51;
-  
+  double Z_modified = Z_value * cIncr + cOffset - 168.51;     //  Adjust formula - 168.51 is observed value of MUX resistance 
+                                                              //  (not quite accurate and stable value)
   Serial.print(millis());
   Serial.print("\t");
   Serial.print("Pair ");
@@ -192,7 +204,7 @@ void loop() {
   
   // --- End B ---
   
-  do{
+  do{ // switching the electrodes and channels one by one
     
     lt2++;
     if(lt2 > MAX_PAIR)
@@ -202,7 +214,7 @@ void loop() {
       if(lt1 > MAX_PAIR)
         lt1 = 0;
     }
-  }while(lt1 == lt2);
+  }while(lt1 == lt2); // Preventing same pair - same electrode with shorting the channels
  
 #if ENABLE_RECALIBRATION  
   if( lt1 == 0 && lt2 == 1)
@@ -215,15 +227,19 @@ void loop() {
   
 }
 
+/*
+ * The function to perform calibration. 
+ * Automatically switch the calibration MUX to get gain factor and global phase shift.
+ */
 bool performCalibration()
 {
   //[A.3] Calculate the gain factor (needs cal resistance, # of measurements)
   //Note: The gain factor finding function returns the INVERSE of the factor
   //as defined on the datasheet!
   
-  switchCalibrationMUX(2);
+  switchCalibrationMUX(2); // True calibration resistor
   AD5933.getGainFactor(cal_resistance[1], cal_samples, gainFactor, globalShift, false);
-#if VERBOSE
+#if VERBOSE // To get raw data. - Logging
   if (gainFactor != -1)
   {
     Serial.print("Gain factor (");
@@ -245,7 +261,7 @@ bool performCalibration()
   } 
 #endif
   
-  switchCalibrationMUX(1);
+  switchCalibrationMUX(1); // ZMin
   double tSum = 0, tZval = 0;
   for(byte t1=0;t1<cal_samples;t1++)
   {
@@ -272,7 +288,7 @@ bool performCalibration()
   
 #endif  
 
-  switchCalibrationMUX(3);
+  switchCalibrationMUX(3); // ZMax
   //double tSum = 0, tZval = 0;
   tSum = 0;
   for(byte t1=0;t1<cal_samples;t1++)
@@ -315,33 +331,40 @@ bool performCalibration()
 #endif    
 
   
-  switchCalibrationMUX(4);
+  switchCalibrationMUX(4); // Switching toward the actual subject to measure.
   //End [A.3]
    
 }
 
-// num2swt: 1 to 4
+/* Function for switching calibration MUX
+ * num2swt: 1 to 4 
+ */
 bool switchCalibrationMUX(byte num2swt)
 {
-  digitalWrite(MUX_CAL_EN, LOW);
+  digitalWrite(MUX_CAL_EN, LOW); // Disable the MUX
   num2swt--;
   if( num2swt % 2 == 0 )
-    digitalWrite(MUX_CAL_A0, LOW);
+    digitalWrite(MUX_CAL_A0, LOW); // 0 or 2
   else
-    digitalWrite(MUX_CAL_A0, HIGH);
+    digitalWrite(MUX_CAL_A0, HIGH); // 1 or 3
   
   if( (num2swt > 1) % 2 == 0 )
-    digitalWrite(MUX_CAL_A1, LOW);
+    digitalWrite(MUX_CAL_A1, LOW); // 0 or 1
   else 
-    digitalWrite(MUX_CAL_A1, HIGH);
+    digitalWrite(MUX_CAL_A1, HIGH); // 2 or 3
     
-  digitalWrite(MUX_CAL_EN, HIGH);
+  digitalWrite(MUX_CAL_EN, HIGH); // Enable the MUX
   return true;
 }
 
+/*
+ * Function of setting and routing MUX
+ * byte channel - 0~15 - Channel #
+ */
 bool setMUX(byte channela, byte channelb){
   byte controlPina[] = {MUX_A_S0, MUX_A_S1, MUX_A_S2, MUX_A_S3};
   byte controlPinb[] = {MUX_B_S0, MUX_B_S1, MUX_B_S2, MUX_B_S3};
+  // Control pin numbers are saved on controlPin arrays
 
   byte muxChannel[16][4]={
     {0,0,0,0}, //channel 0
@@ -361,8 +384,9 @@ bool setMUX(byte channela, byte channelb){
     {0,1,1,1}, //channel 14
     {1,1,1,1}  //channel 15
   };
+  // Saving combination of pin inputs for each channel to close
 
-  digitalWrite(MUX_A_EN,HIGH);
+  digitalWrite(MUX_A_EN,HIGH); // Turning off MUX
   digitalWrite(MUX_B_EN,HIGH);
   
   //loop through the 4 sig
@@ -371,7 +395,7 @@ bool setMUX(byte channela, byte channelb){
     digitalWrite(controlPinb[i], muxChannel[channelb][i]);
   }
 
-  digitalWrite(MUX_A_EN,LOW);
+  digitalWrite(MUX_A_EN,LOW); // Turning on MUX
   digitalWrite(MUX_B_EN,LOW);
   //read the value at the SIG pin
   

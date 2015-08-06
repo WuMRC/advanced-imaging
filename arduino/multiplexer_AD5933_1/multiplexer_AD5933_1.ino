@@ -1,3 +1,15 @@
+/*
+Performs multiplexing to measure the impedance value between every nodes
+It uses one MUX. It was just first-phase testing routine.
+It uses manual calibration method without using any MUX.
+
+Using Arduino Uno /  TI MUXes (Tomography, CD74HC4067) / AD5933
+
+Author: Il-Taek Kwon (Library, Program)
+(Adapted little portion of Daniel Johnson's code and comments)
+
+*/
+
 #define TWI_FREQ 400000L // Setting TWI/I2C Frequency to 400MHz to speed up.
 
 #define VERBOSE 0 //Toggles verbose debugging output via the serial monitor.
@@ -23,18 +35,26 @@
 #define cal_samples 10 //Set a number of measurements to take of the calibration
                        //resistance. These are used to get an average gain
                        //factor.
+/*
+ * Those six lines of preprocessing codes are for writing bit on the mircocessor register. 
+ * However, they are not used actually, so you can ignore. They could be deleted without affcting any functionality.
+ * Refer http://playground.arduino.cc/Main/AVR
+ */
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 #endif
 #ifndef sbi
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif                            
-//---
 
-double gain_factor = 0;
+double gain_factor = 0; // Global Variable for Gain Factor (see datasheet)
 
-const int MUX_EN = 2, MUX_S0 = 3, MUX_S1 = 4, MUX_S2 = 5, MUX_S3 = 6;
-int lt1=0;
+/* Constants for MUX control pins.
+ *  Pins can be assigned as you want.
+ */
+const int MUX_EN = 2, MUX_S0 = 3, MUX_S1 = 4, MUX_S2 = 5, MUX_S3 = 6; 
+
+int lt1=0; // Memory for current mux channel
 boolean setMUX(byte);
 
 #include <Wire.h> //Library for I2C communications
@@ -56,12 +76,14 @@ void setup()
   pinMode(MUX_S1, OUTPUT);
   pinMode(MUX_S2, OUTPUT);
   pinMode(MUX_S3, OUTPUT);
+  // Setting pin mode
   
   digitalWrite(MUX_EN, HIGH);
   digitalWrite(MUX_S0, HIGH);
   digitalWrite(MUX_S1, HIGH);
   digitalWrite(MUX_S2, HIGH);
   digitalWrite(MUX_S3, HIGH);
+  // Turned off MUX & Initial setting for channel 3
   
   //TWBR=1;
   //cbi(TWSR, TWPS0);
@@ -173,12 +195,11 @@ void setup()
 
 void loop()
 {
-  //unsigned long timerMicro1 = micros();
   //--- B. Repeated single measurement ---
   //Gain factor calibration already sets the frequency, so just send 
   //repeat single magnitude capture command.
   
- 
+  // Temperature update inside/outside of chip.
   #if VERBOSE
   double temp = AD5933.getTemperature();
   Serial.print("Temperature is ");
@@ -201,15 +222,12 @@ void loop()
     delay(1000);
   }
   #else
-  setMUX(lt1);
+  setMUX(lt1); // Routing the multiplexer
   delay(100);
   AD5933.setCtrMode(REPEAT_FREQ);
-  //delay(100);
   #endif
   //End [B.1]
    
-
-  //delay(100);
   #if VERBOSE
   //[B.2.1] Capture the magnitude from real & imaginary registers.
   double Z_magnitude = AD5933.getMagOnce();
@@ -228,17 +246,14 @@ void loop()
   
   #else
   double Z_value = gain_factor/AD5933.getMagOnce();
-  
-  
+  // Shorten version
   #endif
   
-    
-  //Serial.print("Time: ");
-  Serial.print(millis() / 1000.0);  
+  Serial.print(millis() / 1000.0);  // Timestamp in seconds
   
   Serial.print("\t");
   Serial.print("MUX: ");
-  Serial.print(lt1);
+  Serial.print(lt1); // Prining channel
   
   //[B.2.3] Output the impedance value (serial, array, etc.) 
   
@@ -246,28 +261,28 @@ void loop()
   Serial.print("\t");
   Serial.print(Z_value);
   //Serial.println(" Ohms.");
-  Serial.println();
-  
-  //unsigned long timerMicro2 = micros();
-  //delayMicroseconds(16666 - (timerMicro2-timerMicro1));
-  
+  Serial.println();  
   //End [B.3]
   
   // --- End B ---
 
-  lt1++;
+  lt1++; // Going to next channel
   if(lt1 > 15)
-    lt1=0;
+    lt1=0; // Reset channel to zero if exceeded maximum
   #if VERBOSE
   Serial.println("End Loop!");
-  //delay(1000);
   #endif
 }
 
+/*
+ * Function of setting and routing MUX
+ * byte channel - 0~15 - Channel #
+ */
 boolean setMUX(byte channel)
 {
   
   int controlPin[] = {MUX_S0, MUX_S1, MUX_S2, MUX_S3};
+  // Control pin numbers are saved on controlPin array
 
   int muxChannel[16][4]={
     {0,0,0,0}, //channel 0
@@ -287,16 +302,18 @@ boolean setMUX(byte channel)
     {0,1,1,1}, //channel 14
     {1,1,1,1}  //channel 15
   };
+  // Saving combination of pin inputs for each channel to close
 
-  digitalWrite(MUX_EN,HIGH);
+  digitalWrite(MUX_EN,HIGH); // Turning off MUX
   
   //loop through the 4 sig
   for(int i = 0; i < 4; i ++){
     digitalWrite(controlPin[i], muxChannel[channel][i]);
+    
   }
 
-  digitalWrite(MUX_EN,LOW);
-  return true;
+  digitalWrite(MUX_EN,LOW); // Turning on MUX
+  return true; // meaning nothing; saying that it worked well.
 
 }
 
